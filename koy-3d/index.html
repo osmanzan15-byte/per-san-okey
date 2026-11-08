@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Ada Krallığı</title>
+<style>
+  :root { color-scheme: dark; --panel:#1b2a23ee; --panel2:#27392f; --line:#3d5a47; --ink:#eef3e8; --mute:#a2b8a7; --gold:#f2c14e; --accent:#e9a23b; --bad:#ec6a5a; --good:#7fd16a;
+    --wood:#c58a4a; --stone:#a9b4bd; --food:#9ccf4f; --goldr:#f0c24b; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #8fd3f4; color: var(--ink); font-family: "Trebuchet MS", system-ui, sans-serif; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .hud { position: fixed; z-index: 5; }
+  #top { top: max(8px, env(safe-area-inset-top, 0px)); left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; pointer-events: none; }
+  .pill { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 7px 12px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; pointer-events: auto; backdrop-filter: blur(6px); }
+  .r { display: flex; align-items: center; gap: 6px; font-weight: bold; font-variant-numeric: tabular-nums; font-size: .92rem; }
+  .r small { color: var(--mute); font-weight: normal; font-size: .75rem; }
+  .dot { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+  .dot.wood { background: var(--wood); } .dot.stone { background: var(--stone); } .dot.food { background: var(--food); } .dot.gold { background: var(--goldr); border-radius: 50%; }
+  button { font: inherit; cursor: pointer; }
+  .btn { background: var(--accent); color: #2a1a05; border: 0; border-radius: 9px; padding: 8px 14px; font-weight: bold; }
+  .btn:hover:not(:disabled) { filter: brightness(1.1); }
+  .btn:disabled { background: #3a4a40; color: #78897c; cursor: not-allowed; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); font-weight: normal; padding: 5px 9px; }
+  .btn.ghost.on { background: var(--panel2); border-color: var(--accent); color: var(--accent); }
+  #mini { bottom: max(10px, env(safe-area-inset-bottom, 0px)); left: max(10px, env(safe-area-inset-left, 0px)); width: 130px; height: 130px; border-radius: 50%; border: 2px solid var(--line); background: #0d3b5acc; }
+  #prompt { bottom: max(24px, env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; padding: 9px 16px; font-weight: bold; text-align: center; max-width: 80vw; display: none; }
+  #prompt kbd { background: var(--accent); color: #2a1a05; border-radius: 5px; padding: 1px 7px; margin-right: 6px; }
+  #units { top: 64px; right: max(8px, env(safe-area-inset-right, 0px)); font-size: .85rem; display: grid; gap: 2px; }
+  #cine { top: 64px; left: 50%; transform: translateX(-50%); display: none; }
+  #joy { bottom: max(24px, env(safe-area-inset-bottom, 0px)); left: max(24px, env(safe-area-inset-left, 0px)); width: 110px; height: 110px; border-radius: 50%; background: #ffffff22; border: 2px solid #ffffff55; display: none; touch-action: none; }
+  #joy i { position: absolute; left: 35px; top: 35px; width: 40px; height: 40px; border-radius: 50%; background: #ffffffaa; }
+  #act { bottom: max(34px, env(safe-area-inset-bottom, 0px)); right: max(24px, env(safe-area-inset-right, 0px)); width: 76px; height: 76px; border-radius: 50%; display: none; font-size: 1.1rem; }
+  body.touch #joy, body.touch #act { display: block; } body.touch #mini { left: auto; right: max(10px, env(safe-area-inset-right, 0px)); bottom: auto; top: 110px; width: 100px; height: 100px; }
+  #modal { position: fixed; inset: 0; background: #0008; display: flex; align-items: center; justify-content: center; padding: 14px; z-index: 20; }
+  #modal[hidden] { display: none; }
+  .box { background: #1b2a23; border: 1px solid var(--line); border-radius: 16px; padding: 16px; width: min(480px, 100%); max-height: 88vh; overflow-y: auto; }
+  .box h3 { margin: 0 0 4px; color: var(--gold); }
+  .hint { color: var(--mute); font-size: .85rem; line-height: 1.4; margin: 0 0 8px; }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .row .info { min-width: 0; flex: 1 1 170px; } .row .info b { display: block; } .row .info small { color: var(--mute); }
+  .cost { display: inline-flex; gap: 8px; flex-wrap: wrap; font-size: .8rem; color: var(--mute); }
+  .cost span { display: inline-flex; align-items: center; gap: 4px; } .cost span.no { color: var(--bad); }
+  .meter { height: 8px; border-radius: 99px; background: #0005; overflow: hidden; margin-top: 4px; } .meter i { display: block; height: 100%; background: var(--bad); } .meter.go i { background: var(--accent); }
+  .tag { font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--panel2); color: var(--mute); }
+  .tag.win { background: #2f5a2a; color: #cdf3bd; } .tag.lose { background: #5d2b25; color: #ffd0c8; }
+  .log { display: grid; gap: 6px; } .log div { background: var(--panel2); border-radius: 8px; padding: 8px 10px; font-size: .88rem; line-height: 1.4; }
+  .log div.bad { border-left: 3px solid var(--bad); } .log div.good { border-left: 3px solid var(--good); }
+  .num { display: flex; align-items: center; gap: 6px; } .num input { width: 62px; background: #0005; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px; font: inherit; text-align: center; }
+  #toasts { position: fixed; left: 50%; transform: translateX(-50%); top: 110px; display: grid; gap: 6px; z-index: 30; width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+  .toast { background: #101813f0; border: 1px solid var(--accent); border-radius: 10px; padding: 9px 12px; font-size: .9rem; animation: up .3s ease; }
+  .toast.bad { border-color: var(--bad); } .toast.good { border-color: var(--good); }
+  @keyframes up { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+  #intro { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 30%, #2d6b8fcc, #0a2538ee); text-align: center; padding: 20px; }
+  #intro .box { text-align: center; } #intro h1 { margin: 0 0 6px; font-size: 2.2rem; letter-spacing: 2px; color: var(--gold); }
+  #intro kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 7px; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="top" class="hud"><div class="pill" id="res"></div>
+  <div class="pill"><span id="clock" style="color:var(--mute);font-size:.85rem"></span>
+    <button class="btn ghost" data-speed="1">×1</button><button class="btn ghost" data-speed="2">×2</button><button class="btn ghost" data-speed="4">×4</button>
+    <button class="btn ghost" data-act="log">Raporlar</button><button class="btn ghost" data-act="newgame">Yeni oyun</button></div></div>
+<div id="units" class="hud pill"></div>
+<canvas id="mini" class="hud" width="260" height="260"></canvas>
+<div id="cine" class="hud"><button class="btn" data-act="skipcam">Köye dön (Esc)</button></div>
+<div id="prompt" class="hud"></div>
+<div id="joy" class="hud"><i></i></div><button id="act" class="btn hud" data-act="interact">E</button>
+<div id="modal" hidden><div class="box" id="mbox"></div></div>
+<div id="toasts"></div>
+<div id="intro"><div class="box"><h1>ADA KRALLIĞI</h1>
+  <p class="hint">Küçük adanın kralısın. Köyünde yürü, bina kur, asker eğit. Limandan gemiyle komşu adalara çıkartma yap ve hepsini fethet.</p>
+  <p class="hint"><kbd>W A S D</kbd> yürü · <kbd>E</kbd> etkileşim · fareyle sürükle kamerayı döndür · tekerlek yakınlaştır<br>Mobilde: sol joystick, sağ düğme, ekranı sürükle.</p>
+  <button class="btn" id="go">Başla</button></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const RES = ['wood', 'stone', 'food', 'gold'];
+const RN = { wood: 'Odun', stone: 'Taş', food: 'Yiyecek', gold: 'Altın' };
+const MAXLV = 5, HOME_R = 44, SEA_Y = -1.2, SHIP_V = 10, FIGHT = 10;
+const TAU = Math.PI * 2;
+
+// ================= OYUN VERİSİ =================
+const BLD = {
+  hall:     { n: 'Ana Bina',  cost: { wood: 80, stone: 80 }, desc: 'Diğer yapıların azami seviyesini belirler.' },
+  farm:     { n: 'Çiftlik',   rate: ['food', 3.0], cost: { wood: 50, stone: 20 }, desc: 'Yiyecek üretir.' },
+  wood:     { n: 'Oduncu',    rate: ['wood', 2.6], cost: { wood: 30, stone: 30 }, desc: 'Odun üretir.' },
+  quarry:   { n: 'Taş Ocağı', rate: ['stone', 2.0], cost: { wood: 60, stone: 20 }, desc: 'Taş üretir.' },
+  market:   { n: 'Pazar',     rate: ['gold', 1.5], cost: { wood: 80, stone: 60 }, desc: 'Altın üretir.' },
+  house:    { n: 'Ev',        cost: { wood: 50, stone: 40 }, desc: 'Nüfus sınırını +10 artırır, köye yeni köylüler getirir.' },
+  barracks: { n: 'Kışla',     uniq: true, cost: { wood: 120, stone: 90, gold: 20 }, desc: 'Asker eğitir. Seviye 2 süvariyi açar, eğitimi hızlandırır.' },
+  port:     { n: 'Liman',     uniq: true, cost: { wood: 150, stone: 100, gold: 30 }, desc: 'Gemiler buradan çıkartmaya gider. Seviye gemi kapasitesini artırır.' },
+};
+const WALL = { cost: { wood: 60, stone: 140 } };
+const UNIT = {
+  inf: { n: 'Piyade', atk: 6,  hp: 20, time: 8,  cost: { food: 30, wood: 20, gold: 10 }, beats: 'cav', info: 'Süvariye güçlü' },
+  arc: { n: 'Okçu',   atk: 9,  hp: 12, time: 10, cost: { food: 25, wood: 30, gold: 20 }, beats: 'inf', info: 'Piyadeye güçlü' },
+  cav: { n: 'Süvari', atk: 12, hp: 28, time: 15, cost: { food: 60, wood: 20, gold: 50 }, beats: 'arc', info: 'Okçuya güçlü · Kışla 2' },
+};
+const UK = ['inf', 'arc', 'cav'];
+const VILL = [
+  { n: 'Kuzey Ovası', lvl: 1, army: { inf: 5, arc: 2, cav: 0 }, wall: 0.05, ang: 120, d: 125 },
+  { n: 'Taşlıdere',   lvl: 2, army: { inf: 8, arc: 5, cav: 1 }, wall: 0.12, ang: 60, d: 140 },
+  { n: 'Kara Orman',  lvl: 3, army: { inf: 10, arc: 10, cav: 4 }, wall: 0.2, ang: 145, d: 165 },
+  { n: 'Demirkaya',   lvl: 4, army: { inf: 16, arc: 12, cav: 9 }, wall: 0.3, ang: 35, d: 185 },
+  { n: 'Ejder Kalesi', lvl: 5, army: { inf: 24, arc: 20, cav: 16 }, wall: 0.45, ang: 90, d: 235 },
+];
+// arsalar: 0 ana bina, 1 liman, 2.. serbest
+const PLOTS = [{ x: 0, z: 0, k: 'hall' }, { x: 0, z: 34, k: 'port' }];
+for (let k = 0; k < 6; k++) { const a = (30 + 60 * k) * Math.PI / 180; PLOTS.push({ x: Math.cos(a) * 14, z: Math.sin(a) * 14, k: 'slot' }); }
+for (let k = 0; k < 6; k++) { const a = 60 * k * Math.PI / 180; PLOTS.push({ x: Math.cos(a) * 26, z: Math.sin(a) * 26, k: 'slot' }); }
+
+const DOCK = new THREE.Vector3(0, SEA_Y + 0.5, 52);
+const ISL = VILL.map(d => {
+  const a = d.ang * Math.PI / 180, pos = new THREE.Vector3(Math.cos(a) * d.d, 0, Math.sin(a) * d.d), r = 16 + 2 * d.lvl;
+  const toDock = DOCK.clone().setY(0).sub(pos).normalize();
+  const stop = pos.clone().addScaledVector(toDock, r + 10).setY(DOCK.y), land = pos.clone().addScaledVector(toDock, r - 1);
+  return { pos, r, stop, land, dirAD: toDock.clone().negate(), sailT: stop.distanceTo(DOCK) / SHIP_V };
+});
+
+let S, speed = 1;
+function fresh() {
+  const b = Array(PLOTS.length).fill(null);
+  b[0] = { t: 'hall', l: 1 }; b[2] = { t: 'farm', l: 1 }; b[3] = { t: 'wood', l: 1 }; b[4] = { t: 'house', l: 1 };
+  return { t: 0, res: { wood: 280, stone: 220, food: 220, gold: 100 }, b, wall: { l: 0 }, units: { inf: 0, arc: 0, cav: 0 }, queue: [], marches: [], raids: [], log: [], mid: 0, won: false,
+    v: VILL.map((d, i) => ({ i, morale: 100, conq: false, army: { ...d.army }, max: { ...d.army }, stock: { wood: 60 * d.lvl, stone: 50 * d.lvl, food: 60 * d.lvl, gold: 40 * d.lvl },
+      nextRaid: 260 + i * 60 + Math.random() * 90, scout: null, scoutAt: -999 })) };
+}
+function load() { try { const j = localStorage.getItem('ada-kralligi-v1'); if (j) { const o = JSON.parse(j); if (o && o.b && o.v && o.b.length === PLOTS.length) return o; } } catch (e) {} return fresh(); }
+function save() { try { localStorage.setItem('ada-kralligi-v1', JSON.stringify(S)); } catch (e) {} }
+
+const lvOf = t => { const x = S.b.find(y => y && y.t === t && !y.until || y && y.t === t && y.l); return x ? x.l : 0; };
+const hallLv = () => S.b[0].l;
+const maxLv = t => t === 'hall' ? MAXLV : Math.min(MAXLV, hallLv());
+const cost = (t, lv) => Object.fromEntries(Object.entries(BLD[t].cost).map(([k, v]) => [k, Math.round(v * Math.pow(1.6, lv))]));
+const wallCost = lv => Object.fromEntries(Object.entries(WALL.cost).map(([k, v]) => [k, Math.round(v * Math.pow(1.6, lv))]));
+const buildTime = lv => 6 + 7 * lv;
+const popCap = () => 15 + 10 * S.b.reduce((s, x) => s + (x && x.t === 'house' ? x.l : 0), 0);
+const homeCount = () => UK.reduce((s, k) => s + S.units[k], 0);
+const marchCount = () => S.marches.reduce((s, m) => s + UK.reduce((q, k) => q + m.units[k], 0), 0);
+const queueCount = () => S.queue.reduce((s, q) => s + q.n, 0);
+const popUsed = () => homeCount() + marchCount() + queueCount();
+const shipCap = () => 10 + 10 * lvOf('port');
+const can = c => Object.entries(c).every(([k, v]) => S.res[k] >= v);
+const pay = c => Object.entries(c).forEach(([k, v]) => S.res[k] -= v);
+const wallBonus = () => 1 + 0.12 * S.wall.l;
+const fmt = n => Math.floor(n).toLocaleString('tr-TR');
+const clock = t => { t = Math.floor(t); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+const trainTime = u => UNIT[u].time / (1 + 0.18 * (Math.max(1, lvOf('barracks')) - 1));
+function rates() {
+  const r = { wood: 0, stone: 0, food: 0, gold: 0 };
+  for (const x of S.b) if (x && BLD[x.t].rate && x.l) r[BLD[x.t].rate[0]] += BLD[x.t].rate[1] * x.l;
+  for (const v of S.v) if (v.conq) RES.forEach(k => r[k] += VILL[v.i].lvl * 1.2);
+  r.food -= (homeCount() + marchCount()) * 0.06; return r;
+}
+function say(msg, kind = '') {
+  const el = document.createElement('div'); el.className = 'toast ' + kind; el.textContent = msg;
+  const box = $('#toasts'); while (box.children.length >= 3) box.firstChild.remove(); box.appendChild(el); setTimeout(() => el.remove(), 4500);
+}
+function report(msg, kind = '') { S.log.unshift({ t: S.t, msg, kind }); S.log.length = Math.min(S.log.length, 40); }
+const costHtml = c => '<span class="cost">' + Object.entries(c).map(([k, v]) => `<span class="${S.res[k] >= v ? '' : 'no'}"><i class="dot ${k}"></i>${fmt(v)}</span>`).join('') + '</span>';
+
+// ================= SAVAŞ MANTIĞI =================
+function mult(type, enemy) {
+  const tot = UK.reduce((s, k) => s + enemy[k], 0); if (tot <= 0) return 1;
+  return 1 + 0.6 * enemy[UNIT[type].beats] / tot - 0.3 * enemy[UK.find(k => UNIT[k].beats === type)] / tot;
+}
+function battle(att, def, defBonus) {
+  let a = { ...att }, d = { ...def }; const sum = o => UK.reduce((s, k) => s + o[k], 0);
+  for (let r = 0; r < 14 && sum(a) >= 0.5 && sum(d) >= 0.5; r++) {
+    const pa = UK.reduce((s, k) => s + a[k] * UNIT[k].atk * mult(k, d), 0), pd = UK.reduce((s, k) => s + d[k] * UNIT[k].atk * mult(k, a), 0) * defBonus;
+    const ha = UK.reduce((s, k) => s + a[k] * UNIT[k].hp, 0), hd = UK.reduce((s, k) => s + d[k] * UNIT[k].hp, 0);
+    const fa = Math.min(1, pd * 0.3 / ha), fd = Math.min(1, pa * 0.3 / hd);
+    UK.forEach(k => { a[k] *= 1 - fa; d[k] *= 1 - fd; });
+  }
+  const attWin = sum(a) > sum(d) + 0.4, out = { attWin, margin: Math.min(1, (sum(a) - sum(d)) / Math.max(1, sum(att))), attLeft: {}, defLeft: {} };
+  UK.forEach(k => { out.attLeft[k] = attWin ? Math.round(a[k]) : Math.floor(a[k] * 0.3); out.defLeft[k] = Math.round(d[k]); });
+  return out;
+}
+const lost = (before, after) => { const o = {}; UK.forEach(k => o[k] = Math.max(0, before[k] - after[k])); return o; };
+
+function startAttack(vi, units) {
+  UK.forEach(k => S.units[k] -= units[k]);
+  const m = { id: ++S.mid, vi, units, stage: 'out', t0: S.t, dur: ISL[vi].sailT, loot: {}, res: null };
+  S.marches.push(m); cine = { kind: 'm', id: m.id };
+  say('Filo ' + VILL[vi].n + ' adasına yola çıktı.');
+}
+function fightAttack(m) {
+  const v = S.v[m.vi], d = VILL[m.vi], before = { ...m.units }, defBefore = { ...v.army };
+  const res = battle(m.units, v.army, 1 + d.wall); m.res = { before, defBefore, attLost: lost(before, res.attLeft), defLost: lost(v.army, res.defLeft), attWin: res.attWin };
+  const lostTxt = UK.map(k => m.res.attLost[k] + ' ' + UNIT[k].n.toLowerCase()).join(', ');
+  if (res.attWin) {
+    const cap = UK.reduce((s, k) => s + res.attLeft[k], 0) * 40; const loot = {}; let tot = 0;
+    RES.forEach(k => { loot[k] = Math.floor(v.stock[k] * 0.45); tot += loot[k]; }); if (tot > cap) RES.forEach(k => loot[k] = Math.floor(loot[k] * cap / tot));
+    RES.forEach(k => v.stock[k] -= loot[k]); m.loot = loot; v.army = res.defLeft; v.morale -= 28 + 30 * res.margin;
+    const lt = RES.filter(k => loot[k] > 0).map(k => fmt(loot[k]) + ' ' + RN[k].toLowerCase()).join(', ');
+    if (v.morale <= 0) { v.conq = true; v.morale = 0; report(`${d.n} fethedildi! Artık sürekli vergi öder. Kayıp: ${lostTxt}.`, 'good'); say(d.n + ' fethedildi!', 'good'); }
+    else { report(`${d.n} adasına çıkartma başarılı. Ganimet: ${lt || 'yok'}. Kayıp: ${lostTxt}. Moral: ${Math.ceil(v.morale)}.`, 'good'); say('Çıkartma başarılı!', 'good'); }
+  } else { m.loot = {}; v.army = res.defLeft; report(`${d.n} çıkartması başarısız. Kayıp: ${lostTxt}.`, 'bad'); say('Çıkartma püskürtüldü.', 'bad'); }
+  m.units = res.attLeft;
+  spawnBattle({ id: 'm' + m.id, center: ISL[m.vi].land, dirAD: ISL[m.vi].dirAD, att: before, def: defBefore, attLost: m.res.attLost, defLost: m.res.defLost, attTeam: 'blue', defTeam: 'red' });
+}
+function startRaid(v) {
+  const d = VILL[v.i], f = 0.55 + Math.random() * 0.25, raiders = {}; UK.forEach(k => raiders[k] = Math.round(v.max[k] * f));
+  const dir = ISL[v.i].pos.clone().normalize(), stopE = ISL[v.i].pos.clone().addScaledVector(dir, -(ISL[v.i].r + 10));
+  const stopH = dir.clone().multiplyScalar(HOME_R + 9).setY(DOCK.y), r = { id: ++S.mid, vi: v.i, raiders, stage: 'in', t0: S.t, dur: stopE.distanceTo(stopH) / SHIP_V, dir: [dir.x, dir.z], res: null };
+  stopE.y = DOCK.y; S.raids.push(r); cine = { kind: 'r', id: r.id };
+  say('⚠ ' + d.n + ' gemileri köyüne yaklaşıyor!', 'bad'); report(d.n + ' baskın filosu gönderdi.', 'bad');
+}
+function fightRaid(r) {
+  const d = VILL[r.vi], before = { ...r.raiders }, defBefore = { ...S.units }, res = battle(r.raiders, S.units, wallBonus());
+  r.res = { win: res.attWin };
+  if (res.attWin) { RES.forEach(k => S.res[k] -= Math.floor(S.res[k] * 0.2)); report(`${d.n} köyünü bastı! Kaynakların %20'sini kaybettin.`, 'bad'); say(d.n + ' köyü bastı!', 'bad'); }
+  else { report(`${d.n} baskınını püskürttün.`, 'good'); say('Baskın püskürtüldü.', 'good'); }
+  UK.forEach(k => S.units[k] = Math.min(S.units[k], res.defLeft[k]));
+  const dir = new THREE.Vector3(r.dir[0], 0, r.dir[1]);
+  spawnBattle({ id: 'r' + r.id, center: dir.clone().multiplyScalar(HOME_R - 3), dirAD: dir.clone().negate(), att: before, def: defBefore, attLost: lost(before, res.attLeft), defLost: lost(defBefore, res.defLeft), attTeam: 'red', defTeam: 'blue' });
+}
+
+function tick(dt) {
+  S.t += dt;
+  const r = rates(); RES.forEach(k => S.res[k] = Math.max(0, S.res[k] + r[k] * dt));
+  for (const x of S.b) if (x && x.until && S.t >= x.until) { x.l = x.to; x.until = null; say(BLD[x.t].n + ' seviye ' + x.l + ' hazır.', 'good'); }
+  if (S.wall.until && S.t >= S.wall.until) { S.wall.l = S.wall.to; S.wall.until = null; say('Sur seviye ' + S.wall.l + ' hazır.', 'good'); }
+  if (S.queue.length) { const q = S.queue[0]; q.left -= dt; if (q.left <= 0) { S.units[q.u]++; q.n--; if (q.n <= 0) S.queue.shift(); else q.left = trainTime(q.u); } }
+  for (const m of [...S.marches]) {
+    const el = S.t - m.t0;
+    if (m.stage === 'out' && el >= m.dur) { m.stage = 'fight'; m.t0 = S.t; fightAttack(m); }
+    else if (m.stage === 'fight' && el >= FIGHT) { m.stage = 'back'; m.t0 = S.t; if (cine && cine.id === m.id) cine = null; }
+    else if (m.stage === 'back' && el >= m.dur) {
+      UK.forEach(k => S.units[k] += m.units[k]); RES.forEach(k => S.res[k] += m.loot[k] || 0); S.marches.splice(S.marches.indexOf(m), 1);
+      const lt = RES.filter(k => m.loot[k] > 0).map(k => fmt(m.loot[k]) + ' ' + RN[k].toLowerCase()).join(', ');
+      say('Filo limana döndü' + (lt ? ': ' + lt : '') + '.', 'good');
+    }
+  }
+  for (const rd of [...S.raids]) {
+    const el = S.t - rd.t0;
+    if (rd.stage === 'in' && el >= rd.dur) { rd.stage = 'fight'; rd.t0 = S.t; fightRaid(rd); cine = { kind: 'r', id: rd.id }; }
+    else if (rd.stage === 'fight' && el >= FIGHT) { rd.stage = 'out'; rd.t0 = S.t; if (cine && cine.id === rd.id) cine = null; }
+    else if (rd.stage === 'out' && el >= rd.dur) S.raids.splice(S.raids.indexOf(rd), 1);
+  }
+  for (const v of S.v) {
+    if (v.conq) continue; v.morale = Math.min(100, v.morale + dt * 0.1);
+    UK.forEach(k => { if (v.army[k] < v.max[k] && Math.random() < dt / 22) v.army[k]++; });
+    RES.forEach(k => v.stock[k] += dt * VILL[v.i].lvl * 0.5);
+    if (S.t >= v.nextRaid) { if (S.t > 200 && !S.raids.length) startRaid(v); v.nextRaid = S.t + 200 + Math.random() * 120; }
+  }
+  if (!S.won && S.v.every(v => v.conq)) { S.won = true; openModal(`<h3>Zafer!</h3><p class="hint">Beş adayı da fethettin. Takımadanın tek kralı sensin.</p><button class="btn" data-act="newgame">Yeni oyun</button> <button class="btn ghost" data-act="close">Devam et</button>`); }
+}
+
+// ================= 3B SAHNE =================
+const canvas = $('#gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8fd3f4); scene.fog = new THREE.Fog(0x9fdcf5, 140, 560);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 1500);
+scene.add(new THREE.HemisphereLight(0xd8efff, 0x58703d, 0.85));
+const sun = new THREE.DirectionalLight(0xfff1d0, 0.95); sun.position.set(50, 90, 30); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -48, right: 48, top: 48, bottom: -48, near: 10, far: 220 }); sun.shadow.bias = -0.0008; scene.add(sun, sun.target);
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+const MATS = {};
+const mat = c => MATS[c] || (MATS[c] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.92, flatShading: true }));
+function add(g, geo, c, x, y, z, o = {}) { const m = new THREE.Mesh(geo, o.mat || mat(c)); m.position.set(x, y, z); if (o.ry) m.rotation.y = o.ry; if (o.rz) m.rotation.z = o.rz; if (o.rx) m.rotation.x = o.rx; m.castShadow = o.cast !== false; m.receiveShadow = true; g.add(m); return m; }
+const Bx = (g, w, h, d, c, x = 0, y = 0, z = 0, o) => add(g, new THREE.BoxGeometry(w, h, d), c, x, y + h / 2, z, o);
+const Cy = (g, rt, rb, h, c, x = 0, y = 0, z = 0, seg = 10, o) => add(g, new THREE.CylinderGeometry(rt, rb, h, seg), c, x, y + h / 2, z, o);
+const Co = (g, r, h, c, x = 0, y = 0, z = 0, seg = 4, o = {}) => add(g, new THREE.ConeGeometry(r, h, seg), c, x, y + h / 2, z, { ry: seg === 4 ? Math.PI / 4 : 0, ...o });
+const Sp = (g, r, c, x, y, z) => add(g, new THREE.SphereGeometry(r, 10, 8), c, x, y, z);
+
+// ----- Adalar & deniz -----
+const sea = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshStandardMaterial({ color: 0x2b8fc2, roughness: 0.55, metalness: 0.1, flatShading: true }));
+sea.rotation.x = -Math.PI / 2; sea.position.y = SEA_Y; sea.receiveShadow = true; scene.add(sea);
+const foams = [];
+function makeIsland(cx, cz, r, grass = '#6fae45') {
+  const g = new THREE.Group(); g.position.set(cx, 0, cz);
+  Cy(g, r + 5, r + 9, 7, '#6c6a63', 0, -7.2, 0, 28, { cast: false });
+  Cy(g, r + 1, r + 2, 2, '#e8d49c', 0, -2.25, 0, 40, { cast: false });
+  Cy(g, r, r + 0.4, 2, grass, 0, -2, 0, 40, { cast: false });
+  const foam = new THREE.Mesh(new THREE.RingGeometry(r + 3, r + 4.5, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide }));
+  foam.rotation.x = -Math.PI / 2; foam.position.set(cx, SEA_Y + 0.05, cz); scene.add(foam); foams.push({ m: foam, r: r + 3.5 });
+  scene.add(g); return g;
+}
+function tree(g, x, z, s = 1) { const t = new THREE.Group(); Cy(t, 0.3, 0.4, 1.8, '#7a5230', 0, 0, 0, 6); Co(t, 1.7, 2.8, '#2f7a3a', 0, 1.4, 0, 7); Co(t, 1.3, 2.4, '#3a9146', 0, 2.8, 0, 7); t.position.set(x, 0, z); t.scale.setScalar(s); g.add(t); }
+function rnd(a, b) { return a + Math.random() * (b - a); }
+const home = makeIsland(0, 0, HOME_R - 4, '#74b74a');
+{ // plaza, ağaçlar
+  Cy(home, 11, 11.5, 0.15, '#c5ad82', 0, 0, 0, 30, { cast: false });
+  for (let i = 0; i < 60; i++) {
+    const a = rnd(0, TAU), r = rnd(14, 39), x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (PLOTS.some(p => Math.hypot(p.x - x, p.z - z) < 8) || (Math.abs(x) < 7 && z > 20)) continue; tree(home, x, z, rnd(0.8, 1.3));
+  }
+  for (let i = 0; i < 14; i++) { const a = rnd(0, TAU), r = rnd(10, 40); add(home, new THREE.DodecahedronGeometry(rnd(0.5, 1.1)), '#8c8f94', Math.cos(a) * r, 0.2, Math.sin(a) * r); }
+}
+
+// ----- Kişiler -----
+function person(body, o = {}) {
+  const g = new THREE.Group(), legs = [];
+  for (const s of [-1, 1]) { const geo = new THREE.BoxGeometry(0.3, 0.75, 0.32); geo.translate(0, -0.37, 0); const l = new THREE.Mesh(geo, mat(o.pants || '#3b3b4a')); l.position.set(s * 0.2, 0.78, 0); l.castShadow = true; g.add(l); legs.push(l); }
+  Bx(g, 0.85, 0.95, 0.5, body, 0, 0.75); Sp(g, 0.33, '#f2c9a0', 0, 2.05, 0);
+  if (o.hat) Cy(g, 0.28, 0.36, 0.3, o.hat, 0, 2.28, 0, 8);
+  g.userData.legs = legs; return g;
+}
+function soldier(type, team) {
+  const c = team === 'blue' ? '#2f6bd6' : '#c0392b', g = person(c, { hat: team === 'blue' ? '#c9ced6' : '#3a2a2a', pants: '#35384a' });
+  if (type === 'inf') { Bx(g, 0.12, 0.8, 0.6, c, -0.6, 0.9, 0.05); Bx(g, 0.1, 1.1, 0.1, '#d5dbe3', 0.62, 1.0, 0.1); }
+  else if (type === 'arc') { Bx(g, 0.07, 1.3, 0.07, '#7a5230', -0.6, 0.8, 0.1, { rz: 0.05 }); Bx(g, 0.35, 0.55, 0.25, '#6b4a2a', 0.1, 0.85, -0.38); }
+  else { const h = new THREE.Group(); Bx(h, 0.9, 0.8, 2.0, '#7a4a2a', 0, 1.0, 0); Bx(h, 0.4, 0.8, 0.5, '#7a4a2a', 0, 1.5, 1.1, { rx: -0.5 }); for (const [x, z] of [[-.3, .7], [.3, .7], [-.3, -.7], [.3, -.7]]) Bx(h, 0.2, 1.0, 0.2, '#5a3820', x, 0, z); g.position.y = 0; g.scale.setScalar(0.9); g.position.y = 1.7; const w = new THREE.Group(); w.add(h, g); w.userData.legs = []; Bx(g, 0.1, 1.3, 0.1, '#d5dbe3', 0.62, 1.0, 0.1); return w; }
+  return g;
+}
+const hero = person('#d4a017', { hat: '#8e1f1f', pants: '#2e2a4a' }); { Bx(hero, 1.0, 1.2, 0.12, '#a01919', 0, 0.8, -0.32); Co(hero, 0.34, 0.5, '#f2c14e', 0, 2.3, 0, 5); } hero.position.set(0, 0, 12); scene.add(hero);
+const heroS = { x: 0, z: 12, ry: 0, v: 0 };
+
+// ----- Binalar -----
+function model(t, l) {
+  const g = new THREE.Group();
+  if (t === 'hall') {
+    Cy(g, 6.4, 6.8, 0.6, '#9a927f', 0, 0, 0, 4, { ry: Math.PI / 4 }); Bx(g, 8, 4, 8, '#d6c093', 0, 0.6); Co(g, 6.4, 3.6, '#a8432f', 0, 4.6, 0, 4);
+    Bx(g, 3, 7 + l, 3, '#e0cd9f', 3, 0.6, -3); Co(g, 2.5, 3, '#a8432f', 3, 7.6 + l, -3, 4); Bx(g, 1.8, 2.6, 0.3, '#5b3a22', 0, 0.6, 4.05);
+    Cy(g, 0.08, 0.08, 3, '#ddd', 3, 10.6 + l, -3, 5); Bx(g, 1.8, 1, 0.1, '#2f6bd6', 3.9, 12.4 + l, -3);
+    for (const s of [-1, 1]) Bx(g, 1.2, 1.2, 0.2, '#6d4a2c', s * 2.6, 2, 4.05);
+  } else if (t === 'farm') {
+    Bx(g, 12, 0.35, 9, '#6b4a2a', 0, 0, 0, { cast: false }); for (let i = -4; i <= 4; i += 2) Bx(g, 11, 0.7 + 0.1 * l, 0.8, i % 4 ? '#c9a23d' : '#8fbf3a', 0, 0.3, i * 0.9, { cast: false });
+    Bx(g, 4, 3, 3.5, '#b3402f', -4.5, 0, -6.2); Co(g, 3.2, 2, '#7a2a20', -4.5, 3, -6.2, 4); Cy(g, 0.9, 0.9, 3.5, '#d9c58a', 4.8, 0, -6, 8); Co(g, 1.1, 1, '#a8432f', 4.8, 3.5, -6, 8);
+  } else if (t === 'wood') {
+    Bx(g, 5, 2.6, 4, '#8a5a2b', 0, 0); Co(g, 4.2, 2.2, '#5d3a1d', 0, 2.6, 0, 4); Bx(g, 1.2, 1.8, 0.2, '#3d2814', 0, 0, 2.05);
+    for (let i = 0; i < 3; i++) for (let j = 0; j <= i; j++) Cy(g, 0.45, 0.45, 4, '#a06a35', 4.5, 0.4 + i * 0.8, -1.5 + j * 1 - i * 0.5, 8, { rz: 0, rx: Math.PI / 2 }).rotation.x = Math.PI / 2;
+    tree(g, -5, 2, 1.1); tree(g, -5.5, -3, 0.9);
+  } else if (t === 'quarry') {
+    Co(g, 4, 5, '#8e99a3', -2, 0, 0, 5); Co(g, 3.4, 6.5, '#a9b4bd', 2.5, 0, -1, 5); Co(g, 2.5, 3.5, '#8e99a3', 1, 0, 3, 5); Bx(g, 1.6, 1.2, 1.6, '#6b5a45', -4, 0, 3);
+    for (let i = 0; i < 4; i++) add(g, new THREE.DodecahedronGeometry(0.6), '#b6bfc7', rnd(-5, 5), 0.4, rnd(3, 5));
+  } else if (t === 'market') {
+    Bx(g, 7, 0.4, 5, '#a8854a', 0, 0); for (const [x, z] of [[-3, -2], [3, -2], [-3, 2], [3, 2]]) Cy(g, 0.12, 0.12, 3, '#6d4a2c', x, 0.4, z, 6);
+    for (let i = 0; i < 6; i++) Bx(g, 1.2, 0.2, 5.4, i % 2 ? '#f2f2f2' : '#d94f3d', -3 + i * 1.2 + 0.6, 3.4, 0, { rz: i < 3 ? 0.18 : -0.18 });
+    Bx(g, 1.2, 1.2, 1.2, '#8a5a2b', -2, 0.4, 0); Bx(g, 1.2, 0.8, 1.2, '#a06a35', 2, 0.4, 0.5); Cy(g, 0.5, 0.5, 0.15, '#f0c24b', 0.2, 1.1, 0, 12);
+  } else if (t === 'house') {
+    Bx(g, 4.4, 2.8, 4, '#eadbb6', 0, 0); Co(g, 3.7, 2.6, '#b3402f', 0, 2.8, 0, 4); Bx(g, 0.8, 1.8, 0.8, '#7a6a5a', 1.3, 3.2, 0.8); Bx(g, 1, 1.8, 0.2, '#6d4a2c', 0, 0, 2.05); Bx(g, 0.9, 0.9, 0.2, '#7fb8d6', 1.4, 1.1, 2.05);
+    if (l >= 3) Bx(g, 4.2, 0.4, 0.3, '#8a5a2b', 0, 2.5, 2.2);
+  } else if (t === 'barracks') {
+    Bx(g, 10, 4.2, 6, '#9aa3ac', 0, 0); for (let i = -4; i <= 4; i += 2) Bx(g, 1.1, 1, 6.4, '#9aa3ac', i, 4.2); Bx(g, 2.2, 3, 0.3, '#4b3320', 0, 0, 3.05);
+    for (const s of [-1, 1]) { Cy(g, 0.1, 0.1, 5, '#ddd', s * 4.6, 4.2, 3.1, 5); Bx(g, 1.4, 1.8, 0.1, '#c0392b', s * 4.6 + 0.8, 6.5, 3.1); }
+    Bx(g, 1.4, 2.4, 0.2, '#7a5230', -7, 0, 0); Sp(g, 0.5, '#d2b27a', -7, 2.6, 0); Bx(g, 2.6, 1.8, 0.3, '#6d4a2c', 7, 0, 1.5);
+  } else if (t === 'port') {
+    Bx(g, 7, 0.5, 15, '#9a6a3a', 0, 0.1, 6.5); for (let z = 0; z < 15; z += 2.5) for (const s of [-1, 1]) Cy(g, 0.28, 0.28, 3.2, '#5d3a1d', s * 3.2, -2.5, z + 0.5, 6);
+    Bx(g, 4, 3, 4, '#a07040', -0.5, 0.5, -1); Co(g, 3.6, 1.8, '#5d3a1d', -0.5, 3.5, -1, 4); Cy(g, 0.15, 0.15, 5, '#6d4a2c', 2.6, 0.5, 10.5, 6); Bx(g, 3, 0.15, 0.15, '#6d4a2c', 1.2, 5.3, 10.5); Bx(g, 1.4, 1, 1.4, '#a06a35', -2, 0.6, 9);
+  }
+  g.scale.setScalar(1 + 0.07 * (l - 1)); return g;
+}
+const bvis = {}, markers = [];
+PLOTS.forEach((p, i) => {
+  const m = new THREE.Group(); m.position.set(p.x, 0.15, p.z);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.2, 28), new THREE.MeshBasicMaterial({ color: p.k === 'port' ? 0x6fd3ff : 0xffe27a, transparent: true, opacity: 0.8, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; m.add(ring);
+  const plus = new THREE.Group(); Bx(plus, 1.6, 0.4, 0.4, '#ffe27a', 0, 0, 0, { cast: false }); Bx(plus, 0.4, 0.4, 1.6, '#ffe27a', 0, 0, 0, { cast: false }); plus.position.y = 2.5; m.add(plus);
+  m.userData.plus = plus; scene.add(m); markers[i] = m;
+});
+function syncBuildings(time) {
+  PLOTS.forEach((p, i) => {
+    const b = S.b[i], v = bvis[i];
+    if (!b) { if (v) { scene.remove(v.g); delete bvis[i]; } markers[i].visible = true; markers[i].userData.plus.rotation.y = time * 1.5; markers[i].userData.plus.position.y = 2.5 + Math.sin(time * 2 + i) * 0.3; return; }
+    markers[i].visible = false;
+    const dl = Math.max(1, b.l), key = b.t + ':' + dl;
+    if (!v || v.key !== key) { if (v) scene.remove(v.g); const g = model(b.t, dl); g.position.set(p.x, 0, p.z); if (p.k === 'port') g.position.z = p.z; g.userData.s = g.scale.x; scene.add(g); bvis[i] = { g, key }; }
+    const g = bvis[i].g; let s = g.userData.s;
+    if (b.until) { const pr = 1 - (b.until - S.t) / buildTime(b.to - 1); s *= b.l === 0 ? 0.25 + 0.75 * Math.max(0, Math.min(1, pr)) : 1 + 0.02 * Math.sin(time * 8); }
+    g.scale.setScalar(s);
+  });
+}
+// ----- Sur -----
+const wallG = new THREE.Group(); scene.add(wallG); let wallKey = -1;
+function syncWall() {
+  const l = S.wall.l; if (l === wallKey) return; wallKey = l; wallG.clear(); if (!l) return;
+  const n = 56; for (let i = 0; i < n; i++) { const a = i / n * TAU; if (Math.abs(a - Math.PI / 2) < 0.28) continue; const x = Math.cos(a) * (HOME_R - 6.5), z = Math.sin(a) * (HOME_R - 6.5);
+    const h = 2.2 + l * 0.7, c = Cy(wallG, 0.55, 0.6, h, l >= 3 ? '#a9a08f' : '#8a5a2b', x, 0, z, 6); if (l < 3) Co(wallG, 0.55, 0.9, '#8a5a2b', x, h, z, 6); else Bx(wallG, 1.4, 0.5, 1.4, '#a9a08f', x - 0.7, h, z - 0.7); }
+}
+// ----- Gemiler -----
+function shipModel(team) {
+  const g = new THREE.Group(); Bx(g, 3.2, 1.4, 8, '#7a4a2a', 0, 0, 0); Co(g, 1.9, 2.8, '#7a4a2a', 0, 0, 5.2, 4, { rx: Math.PI / 2 }).rotation.set(Math.PI / 2, Math.PI / 4, 0); Bx(g, 3.4, 0.3, 8.2, '#a06a35', 0, 1.4);
+  Cy(g, 0.15, 0.15, 7, '#5d3a1d', 0, 1.6, 0.5, 6); Bx(g, 0.15, 4.2, 3.4, '#f4eede', 0, 3.6, 0.5); Bx(g, 0.1, 1, 1.6, team === 'blue' ? '#2f6bd6' : '#c0392b', 0, 8.2, 0.4);
+  g.children.forEach(c => c.castShadow = true); return g;
+}
+const shipsVis = {};
+function getShip(id, team) { if (!shipsVis[id]) { const s = shipModel(team); scene.add(s); shipsVis[id] = s; } return shipsVis[id]; }
+function placeShip(s, a, b, p, flip) { const x = a.x + (b.x - a.x) * p, z = a.z + (b.z - a.z) * p; s.position.set(x, SEA_Y + 0.5 + Math.sin(perf * 2 + x) * 0.15, z); s.rotation.y = Math.atan2(b.x - a.x, b.z - a.z) + (flip ? Math.PI : 0); s.rotation.z = Math.sin(perf * 1.7) * 0.04; }
+function syncShips() {
+  const live = new Set();
+  for (const m of S.marches) {
+    const s = getShip('m' + m.id, 'blue'); live.add('m' + m.id); const el = S.t - m.t0, i = ISL[m.vi];
+    if (m.stage === 'out') placeShip(s, DOCK, i.stop, Math.min(1, el / m.dur), false);
+    else if (m.stage === 'fight') placeShip(s, DOCK, i.stop, 1, false);
+    else placeShip(s, DOCK, i.stop, 1 - Math.min(1, el / m.dur), true);
+    if (m.stage === 'fight' && !battles[m.id && 'm' + m.id]) spawnBattle({ id: 'm' + m.id, center: i.land, dirAD: i.dirAD, att: m.res ? m.res.before : m.units, def: m.res ? m.res.defBefore : S.v[m.vi].army, attLost: m.res ? m.res.attLost : { inf: 0, arc: 0, cav: 0 }, defLost: m.res ? m.res.defLost : { inf: 0, arc: 0, cav: 0 }, attTeam: 'blue', defTeam: 'red' });
+  }
+  for (const r of S.raids) {
+    const s = getShip('r' + r.id, 'red'); live.add('r' + r.id); const el = S.t - r.t0, isl = ISL[r.vi], dir = new THREE.Vector3(r.dir[0], 0, r.dir[1]);
+    const a = isl.pos.clone().addScaledVector(dir, -(isl.r + 10)).setY(DOCK.y), b = dir.clone().multiplyScalar(HOME_R + 9).setY(DOCK.y);
+    if (r.stage === 'in') placeShip(s, a, b, Math.min(1, el / r.dur), false); else if (r.stage === 'fight') placeShip(s, a, b, 1, false); else placeShip(s, a, b, 1 - Math.min(1, el / r.dur), true);
+  }
+  for (const id in shipsVis) if (!live.has(id)) { scene.remove(shipsVis[id]); delete shipsVis[id]; }
+}
+// ----- Savaş animasyonu -----
+const battles = {};
+function spawnBattle(o) {
+  if (battles[o.id]) return;
+  const mk = (cnt, team, lostC) => {
+    const tot = UK.reduce((s, k) => s + cnt[k], 0), n = tot ? Math.min(18, Math.max(1, Math.round(tot))) : 0, types = [];
+    UK.forEach(k => { const q = tot ? Math.round(cnt[k] / tot * n) : 0; for (let i = 0; i < q; i++) types.push(k); }); while (types.length < n) types.push('inf'); types.length = n;
+    const lt = UK.reduce((s, k) => s + lostC[k], 0), kill = Math.min(n, Math.round(n * (tot ? lt / tot : 0)));
+    return types.map((t, i) => ({ m: soldier(t, team), dieAt: i < kill ? rnd(0.25, 0.85) : -1, sx: rnd(-6, 6), ph: rnd(0, 6), team }));
+  };
+  const A = mk(o.att, o.attTeam, o.attLost), D = mk(o.def, o.defTeam, o.defLost);
+  const side = new THREE.Vector3(-o.dirAD.z, 0, o.dirAD.x), fg = new THREE.Group(); scene.add(fg);
+  [...A, ...D].forEach(f => { fg.add(f.m); f.m.traverse(c => { c.castShadow = true; }); });
+  battles[o.id] = { o, A, D, side, g: fg, t0: perfGame(), dur: FIGHT };
+}
+function perfGame() { return S.t; }
+function updateBattles() {
+  for (const id in battles) {
+    const b = battles[id], p = Math.min(1, (S.t - b.t0) / b.dur), c = b.o.center, d = b.o.dirAD;
+    const run = (f, from, to, face) => {
+      const m = f.m; const q = Math.min(1, p / 0.25); let x, z;
+      x = from.x + (to.x - from.x) * q + b.side.x * f.sx * 0.35; z = from.z + (to.z - from.z) * q + b.side.z * f.sx * 0.35;
+      const clash = p > 0.22 && p < (f.dieAt > 0 ? f.dieAt : 0.9);
+      const j = clash ? Math.sin(perf * 9 + f.ph) * 0.35 : 0; x += d.x * j * (face > 0 ? 1 : -1); z += d.z * j * (face > 0 ? 1 : -1);
+      m.position.set(x, 0, z); m.rotation.y = Math.atan2(d.x * face, d.z * face);
+      const dead = f.dieAt > 0 && p > f.dieAt; if (dead) { const k = Math.min(1, (p - f.dieAt) / 0.06); m.rotation.x = -k * Math.PI / 2; m.position.y = 0.3 * k; }
+      else { const lg = m.userData.legs; if (lg && lg.length) { const s = (q < 1 || clash) ? Math.sin(perf * 12 + f.ph) * 0.7 : 0; lg[0].rotation.x = s; lg[1].rotation.x = -s; } m.position.y += Math.abs(Math.sin(perf * 8 + f.ph)) * (clash ? 0.25 : 0.08); if (m.userData.legs && !m.userData.legs.length) m.position.y = 1.7 * 0 + Math.abs(Math.sin(perf * 8 + f.ph)) * 0.1; }
+    };
+    const clashA = c.clone().addScaledVector(d, 1.5), clashD = c.clone().addScaledVector(d, 3.8);
+    const startA = c.clone().addScaledVector(d, -9), startD = c.clone().addScaledVector(d, 13);
+    b.A.forEach(f => run(f, startA, clashA, 1)); b.D.forEach(f => run(f, startD, clashD, -1));
+    if (p >= 1) { scene.remove(b.g); delete battles[id]; }
+  }
+}
+// ----- Köylüler, askerler, düşman adaları -----
+const citizens = []; function syncCitizens() {
+  const want = Math.min(14, 3 + S.b.reduce((s, x) => s + (x && x.t === 'house' ? x.l * 2 : 0), 0));
+  while (citizens.length < want) { const m = person(['#c0584a', '#4a7fc0', '#7a9a3a', '#b08a3a', '#8a5aa8'][citizens.length % 5], { hat: Math.random() < 0.5 ? '#c2a35a' : null }); m.scale.setScalar(0.85); const a = rnd(0, TAU), r = rnd(5, 18); m.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); scene.add(m); citizens.push({ m, tx: m.position.x, tz: m.position.z, wait: rnd(0, 3) }); }
+}
+function updateCitizens(dt) {
+  for (const c of citizens) {
+    const m = c.m, dx = c.tx - m.position.x, dz = c.tz - m.position.z, d = Math.hypot(dx, dz);
+    if (d < 0.5) { c.wait -= dt; if (c.wait <= 0) { const p = PLOTS[Math.floor(rnd(0, PLOTS.length))]; const a = rnd(0, TAU); c.tx = p.x + Math.cos(a) * 5; c.tz = p.z + Math.sin(a) * 5; if (Math.hypot(c.tx, c.tz) > 38) { c.tx *= 0.6; c.tz *= 0.6; } c.wait = rnd(1, 5); } m.userData.legs.forEach(l => l.rotation.x = 0); }
+    else { const sp = 2.2 * dt; m.position.x += dx / d * sp; m.position.z += dz / d * sp; m.rotation.y = Math.atan2(dx, dz); const s = Math.sin(perf * 9 + c.wait * 3) * 0.7; m.userData.legs[0].rotation.x = s; m.userData.legs[1].rotation.x = -s; }
+  }
+}
+const armyG = new THREE.Group(); scene.add(armyG); let armyKey = '';
+function syncArmy() {
+  const key = UK.map(k => S.units[k]).join(',') + ':' + (S.b[S.b.findIndex(b => b && b.t === 'barracks')] ? 1 : 0); if (key === armyKey) return; armyKey = key; armyG.clear();
+  const bi = S.b.findIndex(b => b && b.t === 'barracks'), bp = bi >= 0 ? PLOTS[bi] : { x: 0, z: 0 }, list = []; UK.forEach(k => { for (let i = 0; i < Math.min(S.units[k], 14); i++) list.push(k); });
+  list.slice(0, 36).forEach((t, i) => { const m = soldier(t, 'blue'); m.scale.setScalar(0.85); const cx = i % 9, cz = Math.floor(i / 9); m.position.set(bp.x - 7 + cx * 1.8, 0, bp.z + 7.5 + cz * 1.8); m.rotation.y = 0; armyG.add(m); });
+}
+const enemyVis = [];
+function buildEnemyIsland(i) {
+  const d = VILL[i], isl = ISL[i], v = S.v[i]; const g = makeIsland(isl.pos.x, isl.pos.z, isl.r - 3, '#6a9e48');
+  const conq = v.conq, col = conq ? '#2f6bd6' : '#a62b2b', n = d.lvl + 3, hs = [];
+  Bx(g, 5, 3.4, 5, '#c4a574', 0, 0, 0); Co(g, 4.3, 2.8, conq ? '#2b4f9a' : '#6a1f1f', 0, 3.4, 0, 4); Cy(g, 0.1, 0.1, 5, '#ddd', 0, 6, 0, 5); Bx(g, 2, 1.1, 0.1, col, 1.1, 9.6, 0);
+  for (let k = 0; k < n; k++) { const a = k / n * TAU + 0.3, r = isl.r * 0.38; Bx(g, 2.8, 2, 2.8, '#d2b98a', Math.cos(a) * r, 0, Math.sin(a) * r); Co(g, 2.4, 1.8, conq ? '#2b4f9a' : '#7a2a20', Math.cos(a) * r, 2, Math.sin(a) * r, 4); }
+  const pr = isl.r * 0.62, np = 22 + 4 * d.lvl, ph = 1.8 + d.lvl * 0.5; for (let k = 0; k < np; k++) { const a = k / np * TAU; const toDock = Math.atan2(isl.dirAD.z * -1, isl.dirAD.x * -1); if (Math.abs(Math.atan2(Math.sin(a - toDock), Math.cos(a - toDock))) < 0.3) continue; Cy(g, 0.28, 0.32, ph, '#7a5230', Math.cos(a) * pr, 0, Math.sin(a) * pr, 5); }
+  if (d.lvl >= 3) for (let k = 0; k < 3; k++) { const a = k * TAU / 3 + 1; Bx(g, 2, 5, 2, '#9aa3ac', Math.cos(a) * pr, 0, Math.sin(a) * pr); Co(g, 1.9, 1.5, conq ? '#2b4f9a' : '#6a1f1f', Math.cos(a) * pr, 5, Math.sin(a) * pr, 4); }
+  for (let k = 0; k < 6; k++) { const a = rnd(0, TAU), r = rnd(isl.r * 0.7, isl.r - 5); tree(g, Math.cos(a) * r, Math.sin(a) * r, 0.9); }
+  g.position.set(isl.pos.x, 0, isl.pos.z); g.children.forEach(c => { c.position.x += 0; }); g.position.set(isl.pos.x, 0, isl.pos.z); g.children.forEach(c => { c.position.x -= 0; });
+  const guards = new THREE.Group(); g.add(guards); enemyVis[i] = { g, conq, gkey: '', guards };
+}
+function syncEnemies() {
+  S.v.forEach((v, i) => {
+    if (!enemyVis[i] || enemyVis[i].conq !== v.conq) { if (enemyVis[i]) { scene.remove(enemyVis[i].g); } buildEnemyIsland(i); }
+    const e = enemyVis[i], tot = UK.reduce((s, k) => s + v.army[k], 0), key = v.conq ? 'c' : Math.min(10, Math.ceil(tot / 2));
+    if (e.gkey !== key) { e.gkey = key; e.guards.clear(); if (!v.conq) { const n = key; for (let k = 0; k < n; k++) { const m = soldier(UK[k % 3 === 2 && v.army.cav ? 2 : k % 2], 'red'); m.scale.setScalar(0.85); const isl = ISL[i], a = Math.atan2(-isl.dirAD.z, -isl.dirAD.x) + (k - n / 2) * 0.12; m.position.set(Math.cos(a) * isl.r * 0.52 - 0, 0, Math.sin(a) * isl.r * 0.52); m.rotation.y = Math.atan2(isl.dirAD.x * -1, isl.dirAD.z * -1) + Math.PI; e.guards.add(m); } } }
+  });
+}
+
+// ================= KONTROL =================
+let cine = null, perf = 0, yaw = 0.0, pitch = 0.72, camDist = 30, menuOpen = false;
+const keys = {}; let joy = { x: 0, z: 0 };
+addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyE' || e.code === 'Space') { if (!$('#intro').hidden && $('#intro').style.display !== 'none') return; if (menuOpen) return; interact(); } if (e.code === 'Escape') { if (menuOpen) closeModal(); else cine = null; } });
+addEventListener('keyup', e => keys[e.code] = false);
+let drag = null;
+canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, id: e.pointerId }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', e => { if (!drag || drag.id !== e.pointerId) return; yaw -= (e.clientX - drag.x) * 0.006; pitch = Math.max(0.15, Math.min(1.25, pitch + (e.clientY - drag.y) * 0.004)); drag.x = e.clientX; drag.y = e.clientY; });
+canvas.addEventListener('pointerup', () => drag = null); canvas.addEventListener('pointercancel', () => drag = null);
+canvas.addEventListener('wheel', e => { camDist = Math.max(10, Math.min(60, camDist + e.deltaY * 0.03)); e.preventDefault(); }, { passive: false });
+if ('ontouchstart' in window || navigator.maxTouchPoints > 0) document.body.classList.add('touch');
+{ const jb = $('#joy'), knob = jb.firstElementChild; let id = null;
+  const mv = e => { const r = jb.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2), L = Math.min(40, Math.hypot(dx, dy)), a = Math.atan2(dy, dx);
+    joy = { x: Math.cos(a) * L / 40, z: Math.sin(a) * L / 40 }; knob.style.transform = `translate(${Math.cos(a) * L}px,${Math.sin(a) * L}px)`; };
+  jb.addEventListener('pointerdown', e => { id = e.pointerId; jb.setPointerCapture(id); mv(e); e.stopPropagation(); });
+  jb.addEventListener('pointermove', e => { if (e.pointerId === id) mv(e); });
+  const up = () => { id = null; joy = { x: 0, z: 0 }; knob.style.transform = ''; }; jb.addEventListener('pointerup', up); jb.addEventListener('pointercancel', up); }
+
+function updateHero(dt) {
+  let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x, iz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0) + joy.z;
+  const L = Math.hypot(ix, iz); if (L > 1) { ix /= L; iz /= L; }
+  if (menuOpen || cine) { ix = iz = 0; }
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = -fz, rz = fx;
+  const mx = rx * ix - fx * iz, mz = rz * ix - fz * iz, sp = 9 * dt;
+  heroS.x += mx * sp; heroS.z += mz * sp;
+  const r = Math.hypot(heroS.x, heroS.z); if (r > HOME_R - 1.5) { heroS.x *= (HOME_R - 1.5) / r; heroS.z *= (HOME_R - 1.5) / r; }
+  PLOTS.forEach((p, i) => { if (!S.b[i]) return; const R = i === 0 ? 6.5 : i === 1 ? 0 : 4.2; if (!R) return; const dx = heroS.x - p.x, dz = heroS.z - p.z, d = Math.hypot(dx, dz); if (d < R) { heroS.x = p.x + dx / d * R; heroS.z = p.z + dz / d * R; } });
+  hero.position.set(heroS.x, 0, heroS.z);
+  if (Math.hypot(mx, mz) > 0.05) { const a = Math.atan2(mx, mz); let da = a - hero.rotation.y; da = Math.atan2(Math.sin(da), Math.cos(da)); hero.rotation.y += da * Math.min(1, 14 * dt); const s = Math.sin(perf * 12) * 0.8; hero.userData.legs[0].rotation.x = s; hero.userData.legs[1].rotation.x = -s; hero.position.y = Math.abs(Math.sin(perf * 12)) * 0.12; }
+  else hero.userData.legs.forEach(l => l.rotation.x *= 0.8);
+}
+const camPos = new THREE.Vector3(0, 20, 30), camLook = new THREE.Vector3();
+function updateCamera(dt) {
+  let tp, dist = camDist, py = pitch, yw = yaw;
+  if (cine) {
+    let p = null; const e = cine.kind === 'm' ? S.marches.find(x => x.id === cine.id) : S.raids.find(x => x.id === cine.id);
+    if (!e) { cine = null; } else {
+      const key = (cine.kind === 'm' ? 'm' : 'r') + e.id, b = battles[key];
+      if (b) { p = b.o.center.clone(); dist = 26; } else if (shipsVis[key]) { p = shipsVis[key].position.clone(); dist = 34; }
+      if (p) { tp = p; py = 0.5; yw = Math.atan2(camPos.x - p.x, camPos.z - p.z) + dt * 0.0; if (!cine.yaw) cine.yaw = yaw + 0.6; yw = cine.yaw + Math.sin(perf * 0.15) * 0.3; }
+    }
+  }
+  if (!tp) tp = new THREE.Vector3(heroS.x, 2, heroS.z);
+  const want = new THREE.Vector3(tp.x + Math.sin(yw) * Math.cos(py) * dist, tp.y + 2 + Math.sin(py) * dist, tp.z + Math.cos(yw) * Math.cos(py) * dist);
+  camPos.lerp(want, Math.min(1, dt * (cine ? 2.2 : 8))); camera.position.copy(camPos);
+  camLook.lerp(new THREE.Vector3(tp.x, tp.y + 1.5, tp.z), Math.min(1, dt * (cine ? 3 : 12))); camera.lookAt(camLook);
+  sun.position.set(tp.x + 50, 90, tp.z + 30); sun.target.position.set(tp.x, 0, tp.z);
+  $('#cine').style.display = cine ? 'block' : 'none';
+}
+
+// ================= ARAYÜZ =================
+let curMenu = null;
+function openModal(html, refresh) { $('#mbox').innerHTML = html; $('#modal').hidden = false; menuOpen = true; curMenu = refresh || null; }
+function closeModal() { $('#modal').hidden = true; menuOpen = false; curMenu = null; }
+function nearestPlot() { let best = -1, bd = 1e9; PLOTS.forEach((p, i) => { const d = Math.hypot(heroS.x - p.x, heroS.z - p.z), lim = i === 0 ? 11 : i === 1 ? 10 : 8; if (d < lim && d < bd) { bd = d; best = i; } }); return best; }
+function interact() { if (cine || menuOpen) return; const i = nearestPlot(); if (i < 0) return; plotMenu(i); }
+function plotMenu(i) {
+  const b = S.b[i], p = PLOTS[i];
+  if (!b) {
+    const opts = Object.keys(BLD).filter(t => t !== 'hall' && (p.k === 'port' ? t === 'port' : t !== 'port') && !(BLD[t].uniq && S.b.some(y => y && y.t === t)));
+    return openModal(`<h3>${p.k === 'port' ? 'Liman kur' : 'Ne inşa edelim?'}</h3>` + opts.map(t => { const c = cost(t, 0); return `<div class="row"><div class="info"><b>${BLD[t].n}</b><small>${BLD[t].desc}</small><br>${costHtml(c)}</div><button class="btn" data-build="${t}" data-slot="${i}" ${can(c) ? '' : 'disabled'}>İnşa et</button></div>`; }).join('') + '<p style="text-align:right"><button class="btn ghost" data-act="close">Kapat</button></p>');
+  }
+  const B = BLD[b.t], c = cost(b.t, b.l), mx = maxLv(b.t); let extra = '';
+  if (b.t === 'barracks') extra = armyHtml();
+  if (b.t === 'port') extra = fleetHtml();
+  if (b.t === 'hall') { const wc = wallCost(S.wall.l); extra = `<h3 style="margin-top:12px;font-size:1rem">Sur · seviye ${S.wall.l}</h3><p class="hint">Baskınlara karşı savunma gücünü %12 artırır. Köyün çevresine palisat çeker.</p>
+    ${S.wall.l < MAXLV ? `<div class="row"><div class="info"><b>Sur seviye ${S.wall.l + 1}</b><small>${buildTime(S.wall.l)} sn</small><br>${costHtml(wc)}</div><button class="btn" data-wall="1" ${(!S.wall.until && S.wall.l < mx && can(wc)) ? '' : 'disabled'}>${S.wall.until ? 'İnşa ediliyor' : S.wall.l ? 'Yükselt' : 'İnşa et'}</button></div>` : '<p class="hint">Sur azami seviyede.</p>'}`; }
+  let prod = ''; if (B.rate) prod = `<p class="hint">Üretim: ${(B.rate[1] * b.l).toFixed(1)} ${RN[B.rate[0]].toLowerCase()}/sn${b.l < MAXLV ? ' → ' + (B.rate[1] * (b.l + 1)).toFixed(1) : ''}</p>`;
+  const note = b.until ? 'İnşaat sürüyor…' : b.l >= MAXLV ? 'Azami seviye.' : b.l >= mx ? 'Önce Ana Bina’yı yükselt.' : '';
+  openModal(`<h3>${B.n} · seviye ${b.l}</h3><p class="hint">${B.desc}</p>${prod}${b.l < MAXLV ? `<div class="row"><div class="info"><b>Seviye ${b.l + 1}</b><small>${buildTime(b.l)} sn</small><br>${costHtml(c)}</div><button class="btn" data-upgrade="${i}" ${(!b.until && b.l < mx && can(c)) ? '' : 'disabled'}>Yükselt</button></div>` : ''}${note ? `<p class="hint">${note}</p>` : ''}${extra}<p style="text-align:right"><button class="btn ghost" data-act="close">Kapat</button></p>`, b.t === 'barracks' ? () => plotMenu(i) : null);
+}
+function armyHtml() {
+  const bar = lvOf('barracks'); let h = '<h3 style="margin-top:12px;font-size:1rem">Asker eğit</h3>';
+  h += UK.map(k => { const u = UNIT[k], locked = k === 'cav' && bar < 2, away = S.marches.reduce((s, m) => s + m.units[k], 0);
+    return `<div class="row"><div class="info"><b>${u.n} <small>· evde ${S.units[k]}${away ? ' · seferde ' + away : ''}</small></b><small>Saldırı ${u.atk} · Can ${u.hp} · ${u.info}</small><br>${costHtml(u.cost)}</div><div><button class="btn" data-train="${k}" data-n="1" ${locked ? 'disabled' : ''}>+1</button> <button class="btn" data-train="${k}" data-n="5" ${locked ? 'disabled' : ''}>+5</button></div></div>`; }).join('');
+  if (S.queue.length) h += S.queue.map((q, i) => `<div class="row"><div class="info"><b>${UNIT[q.u].n} × ${q.n}</b>${i === 0 ? `<div class="meter go"><i style="width:${100 - q.left / trainTime(q.u) * 100}%"></i></div>` : '<small>Bekliyor</small>'}</div></div>`).join('');
+  return h + `<p class="hint">Piyade → Süvari → Okçu → Piyade üstündür. Nüfus: ${popUsed()}/${popCap()}.</p>`;
+}
+function scout(v) { if (S.t - v.scoutAt > 25 || !v.scout) { v.scout = {}; UK.forEach(k => v.scout[k] = Math.max(0, Math.round(v.army[k] * (0.8 + Math.random() * 0.4)))); v.scoutAt = S.t; } }
+function fleetHtml() {
+  let h = `<h3 style="margin-top:12px;font-size:1rem">Çıkartma filosu</h3><p class="hint">Gemi kapasitesi ${shipCap()} asker. Evde: ${S.units.inf} piyade, ${S.units.arc} okçu, ${S.units.cav} süvari.</p>`;
+  h += S.v.map(v => { const d = VILL[v.i]; scout(v); if (v.conq) return `<div class="row"><div class="info"><b>${d.n} <span class="tag win">Fethedildi</span></b><small>Sürekli vergi ödüyor.</small></div></div>`;
+    const sc = v.scout, mine = UK.reduce((s, k) => s + S.units[k] * UNIT[k].atk, 0), q = mine / Math.max(1, UK.reduce((s, k) => s + sc[k] * UNIT[k].atk, 0) * (1 + d.wall)), w = !mine ? ['—', ''] : q > 1.6 ? ['Kolay', 'win'] : q > 1 ? ['Dengeli', ''] : ['Tehlikeli', 'lose'];
+    return `<div class="row"><div class="info"><b>${d.n} <small>· seviye ${d.lvl} · yol ${Math.round(ISL[v.i].sailT)} sn</small> <span class="tag ${w[1]}">${w[0]}</span></b><small>Casus: ~${sc.inf} piyade, ~${sc.arc} okçu, ~${sc.cav} süvari · sur +%${Math.round(d.wall * 100)} · moral ${Math.ceil(v.morale)}</small><div class="meter"><i style="width:${v.morale}%"></i></div></div><button class="btn" data-attack="${v.i}" ${homeCount() ? '' : 'disabled'}>Çıkartma</button></div>`; }).join('');
+  return h;
+}
+function attackMenu(vi) {
+  const v = S.v[vi], d = VILL[vi]; scout(v);
+  openModal(`<h3>${d.n} · çıkartma</h3><p class="hint">Kapasite ${shipCap()} asker. Casus: ~${v.scout.inf} piyade, ~${v.scout.arc} okçu, ~${v.scout.cav} süvari. Sur +%${Math.round(d.wall * 100)}.</p>` +
+    UK.map(k => `<div class="row"><div class="info"><b>${UNIT[k].n}</b><small>Evde ${S.units[k]}</small></div><div class="num"><input type="number" id="send-${k}" min="0" max="${S.units[k]}" value="0" ${S.units[k] ? '' : 'disabled'}><button class="btn ghost" data-all="${k}">Hepsi</button></div></div>`).join('') +
+    `<p style="text-align:right"><button class="btn ghost" data-act="close">Vazgeç</button> <button class="btn" data-send="${vi}">Yola çık</button></p>`);
+}
+function logMenu() { openModal('<h3>Raporlar</h3>' + (S.log.length ? '<div class="log">' + S.log.map(l => `<div class="${l.kind}"><small>${clock(l.t)}</small> ${l.msg}</div>`).join('') + '</div>' : '<p class="hint">Henüz rapor yok.</p>') + '<p style="text-align:right"><button class="btn ghost" data-act="close">Kapat</button></p>'); }
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return; const d = t.dataset;
+  if (t.id === 'go') { $('#intro').style.display = 'none'; return; }
+  if (d.speed) speed = +d.speed;
+  else if (d.build) { const c = cost(d.build, 0); if (!can(c)) return say('Kaynak yetmiyor.', 'bad'); pay(c); S.b[+d.slot] = { t: d.build, l: 0, to: 1, until: S.t + buildTime(0) }; closeModal(); }
+  else if (d.upgrade) { const x = S.b[+d.upgrade], c = cost(x.t, x.l); if (!can(c) || x.until || x.l >= maxLv(x.t)) return; pay(c); x.to = x.l + 1; x.until = S.t + buildTime(x.l); closeModal(); }
+  else if (d.wall) { const c = wallCost(S.wall.l); if (!can(c) || S.wall.until || S.wall.l >= maxLv('wall')) return; pay(c); S.wall.to = S.wall.l + 1; S.wall.until = S.t + buildTime(S.wall.l); closeModal(); }
+  else if (d.train) { const k = d.train, n = +d.n; if (popCap() - popUsed() < n) return say('Nüfus sınırı dolu. Ev inşa et.', 'bad'); const c = Object.fromEntries(Object.entries(UNIT[k].cost).map(([r, v]) => [r, v * n])); if (!can(c)) return say('Kaynak yetmiyor.', 'bad'); pay(c);
+    const last = S.queue[S.queue.length - 1]; if (last && last.u === k && S.queue.length > 1) last.n += n; else S.queue.push({ u: k, n, left: trainTime(k) }); const i = S.b.findIndex(b => b && b.t === 'barracks'); plotMenu(i); }
+  else if (d.attack !== undefined) attackMenu(+d.attack);
+  else if (d.all) { const el = $('#send-' + d.all); el.value = S.units[d.all]; }
+  else if (d.send !== undefined) { const vi = +d.send, units = {}; let n = 0; UK.forEach(k => { const q = Math.max(0, Math.min(S.units[k], parseInt($('#send-' + k).value) || 0)); units[k] = q; n += q; });
+    if (!n) return say('Göndermek için asker seç.', 'bad'); if (n > shipCap()) return say('Gemi kapasitesi ' + shipCap() + ' asker. Limanı yükselt.', 'bad'); closeModal(); startAttack(vi, units); }
+  else if (d.act === 'close') closeModal(); else if (d.act === 'log') logMenu(); else if (d.act === 'skipcam') cine = null; else if (d.act === 'interact') interact();
+  else if (d.act === 'newgame') { S = fresh(); save(); closeModal(); cine = null; Object.keys(battles).forEach(k => { scene.remove(battles[k].g); delete battles[k]; }); wallKey = -1; armyKey = ''; say('Yeni krallık kuruldu.'); }
+});
+let uiAcc = 0, promptTxt = '';
+function renderHUD() {
+  const r = rates(); $('#res').innerHTML = RES.map(k => `<div class="r"><i class="dot ${k}"></i>${fmt(S.res[k])}<small>${r[k] >= 0 ? '+' : ''}${r[k].toFixed(1)}</small></div>`).join('') + `<div class="r">Nüfus ${popUsed()}/${popCap()}</div>`;
+  $('#clock').textContent = 'Gün ' + (1 + Math.floor(S.t / 300)) + ' · ' + clock(S.t);
+  document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === speed));
+  $('#units').innerHTML = `<b>Ordu</b>` + UK.map(k => `<span>${UNIT[k].n}: ${S.units[k]}</span>`).join('') + (S.marches.length ? `<span style="color:var(--accent)">Seferde: ${marchCount()}</span>` : '') + `<span style="color:var(--mute)">Fethedilen: ${S.v.filter(v => v.conq).length}/5</span>`;
+  const pl = $('#prompt'), i = (!cine && !menuOpen) ? nearestPlot() : -1;
+  if (i < 0) pl.style.display = 'none'; else { const b = S.b[i], p = PLOTS[i]; let txt = !b ? (p.k === 'port' ? 'Liman kur' : 'İnşa et') : b.until ? `${BLD[b.t].n} inşa ediliyor %${Math.round(100 - (b.until - S.t) / buildTime(b.to - 1) * 100)}` : `${BLD[b.t].n} · seviye ${b.l}`;
+    pl.innerHTML = `<kbd>E</kbd>${txt}`; pl.style.display = 'block'; }
+}
+let menuAcc = 0;
+function drawMini() {
+  const c = $('#mini'), x = c.getContext('2d'), W = c.width, sc = W / 2 / 290; x.clearRect(0, 0, W, W); x.save(); x.beginPath(); x.arc(W / 2, W / 2, W / 2, 0, TAU); x.clip(); x.fillStyle = '#0d3b5a'; x.fillRect(0, 0, W, W);
+  const P = (px, pz) => [W / 2 + px * sc, W / 2 + pz * sc - 60];
+  const isl = (px, pz, r, col) => { const [a, b] = P(px, pz); x.fillStyle = col; x.beginPath(); x.arc(a, b, Math.max(4, r * sc), 0, TAU); x.fill(); };
+  isl(0, 0, HOME_R, '#6fae45'); ISL.forEach((s, i) => isl(s.pos.x, s.pos.z, s.r, S.v[i].conq ? '#4f8df0' : '#c24a3a'));
+  for (const k in shipsVis) { const [a, b] = P(shipsVis[k].position.x, shipsVis[k].position.z); x.fillStyle = k[0] === 'm' ? '#fff' : '#ffb347'; x.beginPath(); x.arc(a, b, 5, 0, TAU); x.fill(); }
+  const [hx, hy] = P(heroS.x, heroS.z); x.fillStyle = '#ffe27a'; x.beginPath(); x.arc(hx, hy, 5, 0, TAU); x.fill(); x.restore();
+}
+
+// ================= DÖNGÜ =================
+S = load(); let last = performance.now(), saveAcc = 0, miniAcc = 0;
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.1); last = now; perf += dt;
+  tick(dt * speed);
+  updateHero(dt); updateCitizens(dt * speed); syncBuildings(perf); syncWall(); syncCitizens(); syncArmy(); syncEnemies(); syncShips(); updateBattles(); updateCamera(dt);
+  foams.forEach((f, i) => { const s = 1 + Math.sin(perf * 1.2 + i) * 0.015; f.m.scale.setScalar(s); f.m.material.opacity = 0.35 + 0.2 * Math.sin(perf * 1.5 + i); });
+  menuAcc += dt; if (curMenu && menuAcc > 1) { menuAcc = 0; curMenu(); } uiAcc += dt; if (uiAcc > 0.2) { uiAcc = 0; renderHUD(); } miniAcc += dt; if (miniAcc > 0.1) { miniAcc = 0; drawMini(); }
+  saveAcc += dt; if (saveAcc > 5) { saveAcc = 0; save(); }
+  renderer.render(scene, camera); requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.__dbg = { get S() { return S; }, hero: heroS, set speed(v) { speed = v; } };
+</script>
+</body>
+</html>
