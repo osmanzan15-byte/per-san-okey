@@ -3,16 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>Zıpla Zıpla</title>
+<title>Kozmik Kedi</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #2b2d42; font-family: system-ui, sans-serif; overflow: hidden; touch-action: none; }
+  html, body { margin: 0; height: 100%; background: #0b0820; font-family: "Trebuchet MS", system-ui, sans-serif; overflow: hidden; touch-action: none; }
   body { display: flex; align-items: center; justify-content: center; }
   #wrap { position: relative; height: 100vh; max-height: 800px; aspect-ratio: 2 / 3; max-width: 100vw; }
-  canvas { width: 100%; height: 100%; display: block; border-radius: 8px; box-shadow: 0 0 30px #0008; }
+  canvas { width: 100%; height: 100%; display: block; border-radius: 14px; box-shadow: 0 0 40px #7b3fe488; }
   .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: #fffa; text-align: center; color: #222; border-radius: 8px; gap: 8px; }
-  .overlay h1 { margin: 0; font-size: 3rem; color: #3a7d0a; }
-  .overlay button { font-size: 1.4rem; padding: 10px 28px; border: 0; border-radius: 999px; background: #6cc417; color: #fff; cursor: pointer; }
+    background: #0b0820d9; text-align: center; color: #d9d2ff; border-radius: 14px; gap: 10px; padding: 0 24px; }
+  .overlay h1 { margin: 0; font-size: 2.8rem; letter-spacing: 2px; color: #ffd166; text-shadow: 0 0 18px #ff9f1c; }
+  .overlay p { margin: 0; }
+  .overlay b { color: #6ef3d6; }
+  .overlay button { font-size: 1.3rem; padding: 10px 30px; border: 2px solid #6ef3d6; border-radius: 6px; background: transparent;
+    color: #6ef3d6; cursor: pointer; letter-spacing: 2px; text-transform: uppercase; box-shadow: 0 0 14px #6ef3d655; }
+  .overlay button:hover { background: #6ef3d622; }
   .hidden { display: none; }
 </style>
 </head>
@@ -20,16 +24,16 @@
 <div id="wrap">
   <canvas id="c" width="400" height="600"></canvas>
   <div id="menu" class="overlay">
-    <h1>Zıpla Zıpla</h1>
-    <p>← → veya A / D ile hareket et<br>Mobilde ekranın sol/sağına dokun</p>
-    <p>En yüksek skor: <b id="best">0</b></p>
-    <button id="start">Başla</button>
+    <h1>KOZMİK KEDİ</h1>
+    <p>Astronot kedi yıldız taşlarından<br>zıplayarak yükseliyor.<br>← → veya A / D · mobilde ekranın sol/sağına dokun</p>
+    <p>Rekor: <b id="best">0</b></p>
+    <button id="start">Fırlat</button>
   </div>
   <div id="over" class="overlay hidden">
-    <h1>Oyun Bitti</h1>
-    <p>Skor: <b id="final">0</b></p>
-    <p>En yüksek: <b id="best2">0</b></p>
-    <button id="again">Tekrar Oyna</button>
+    <h1>Boşluğa Düştün</h1>
+    <p>Yükseklik: <b id="final">0</b></p>
+    <p>Rekor: <b id="best2">0</b></p>
+    <button id="again">Yeniden Fırlat</button>
   </div>
 </div>
 <script>
@@ -143,47 +147,70 @@ function gameOver() {
   $('over').classList.remove('hidden');
 }
 
+const stars = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.6 + 0.4, z: Math.random() * 0.5 + 0.1 }));
+
 function draw() {
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#d8f3ff'); g.addColorStop(1, '#fdfbe6');
+  g.addColorStop(0, '#0b0820'); g.addColorStop(0.6, '#241250'); g.addColorStop(1, '#4a1d6e');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  // ızgara (defter kağıdı)
-  ctx.strokeStyle = '#a8c8e033'; ctx.lineWidth = 1;
-  for (let x = 0; x < W; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-  for (let y = (camY % 20); y < H; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  for (const st of stars) { // paralaks yıldızlar
+    const y = (st.y + camY * st.z) % H;
+    ctx.fillStyle = `rgba(255,255,255,${0.4 + st.z})`; ctx.fillRect(st.x, y, st.r, st.r);
+  }
+  // uzak gezegen
+  const py = (140 + camY * 0.08) % (H + 200) - 60;
+  ctx.fillStyle = '#ff9f1c22'; ctx.beginPath(); ctx.arc(320, py, 46, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#ffd16655'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(320, py, 70, 14, -0.4, 0, 7); ctx.stroke();
 
-  for (const p of platforms) {
-    ctx.fillStyle = p.type === 'moving' ? '#4a90e2' : p.type === 'break' ? '#b5651d' : '#6cc417';
-    ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 6); ctx.fill();
-    if (p.type === 'break') { ctx.strokeStyle = '#5a3210'; ctx.beginPath(); ctx.moveTo(p.x + 30, p.y); ctx.lineTo(p.x + 38, p.y + p.h); ctx.stroke(); }
+  for (const p of platforms) { // yıldız taşları
+    const col = p.type === 'moving' ? ['#38bdf8', '#0b6fa4'] : p.type === 'break' ? ['#c4b5a0', '#6b5b4b'] : ['#6ef3d6', '#14907a'];
+    ctx.shadowColor = col[0]; ctx.shadowBlur = p.type === 'break' ? 0 : 10;
+    ctx.fillStyle = col[1]; ctx.beginPath(); ctx.roundRect(p.x, p.y + 4, p.w, p.h - 4, 7); ctx.fill();
+    ctx.fillStyle = col[0]; ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, 8, 5); ctx.fill();
+    ctx.shadowBlur = 0;
+    if (p.type === 'break') { ctx.strokeStyle = '#2a1f17'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(p.x + 28, p.y); ctx.lineTo(p.x + 36, p.y + 7); ctx.lineTo(p.x + 31, p.y + p.h); ctx.stroke(); }
   }
   for (const it of items) {
     const x = it.plat.x + it.ox, y = it.plat.y;
-    if (it.kind === 'spring') {
-      ctx.strokeStyle = '#888'; ctx.lineWidth = 3;
-      ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(x, y - i * 4); ctx.lineTo(x + 14, y - i * 4 - 2); }
-      ctx.stroke(); ctx.fillStyle = '#e33'; ctx.fillRect(x - 2, y - 18, 18, 4);
-    } else { ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.roundRect(x, y - 24, 16, 24, 5); ctx.fill(); }
+    if (it.kind === 'spring') { // mantar sıçratıcı
+      ctx.fillStyle = '#f5e6c8'; ctx.fillRect(x + 3, y - 10, 8, 10);
+      ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(x + 7, y - 10, 12, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillRect(x, y - 16, 4, 4); ctx.fillRect(x + 9, y - 19, 4, 4);
+    } else { // roket
+      ctx.fillStyle = '#e8e8f5'; ctx.beginPath(); ctx.roundRect(x, y - 26, 16, 24, [8, 8, 2, 2]); ctx.fill();
+      ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x - 5, y); ctx.lineTo(x + 3, y - 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x + 16, y - 8); ctx.lineTo(x + 21, y); ctx.lineTo(x + 13, y - 2); ctx.fill();
+      ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(x + 8, y - 17, 4, 0, 7); ctx.fill();
+    }
   }
-  for (const e of enemies) { // canavar
-    ctx.fillStyle = '#8e44ad'; ctx.beginPath(); ctx.roundRect(e.x, e.y, e.w, e.h, 12); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillRect(e.x + 8, e.y + 8, 8, 8); ctx.fillRect(e.x + 24, e.y + 8, 8, 8);
-    ctx.fillStyle = '#000'; ctx.fillRect(e.x + 11, e.y + 11, 3, 3); ctx.fillRect(e.x + 27, e.y + 11, 3, 3);
+  for (const e of enemies) { // UFO
+    ctx.fillStyle = '#7dd3fc'; ctx.beginPath(); ctx.arc(e.x + 20, e.y + 10, 11, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#a3a3c2'; ctx.beginPath(); ctx.ellipse(e.x + 20, e.y + 16, 20, 9, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = Math.floor(frame / 8) % 2 ? '#ffd166' : '#ff4d6d';
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(e.x + 8 + i * 12, e.y + 17, 2.5, 0, 7); ctx.fill(); }
   }
   drawPlayer();
 
-  ctx.fillStyle = '#222'; ctx.font = 'bold 22px system-ui'; ctx.fillText(score, 12, 30);
+  ctx.fillStyle = '#ffd166'; ctx.font = 'bold 20px "Trebuchet MS", system-ui'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(score + ' m', 14, 30);
+  if (best) { ctx.fillStyle = '#d9d2ff88'; ctx.font = '13px system-ui'; ctx.fillText('rekor ' + best, 14, 48); }
 }
 
 function drawPlayer() {
   const { x, y, w, h, dir } = player;
   ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(dir, 1);
-  ctx.fillStyle = '#b7e34a'; ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h * 0.85, 14); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(2, -6, 7, 0, 7); ctx.arc(14, -6, 7, 0, 7); ctx.fill();
-  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(4, -6, 3, 0, 7); ctx.arc(16, -6, 3, 0, 7); ctx.fill();
-  ctx.fillStyle = '#7fae1f'; ctx.fillRect(18, 2, 14, 8); // burun
-  ctx.fillStyle = '#7fae1f'; ctx.fillRect(-14, h * 0.35, 6, 8); ctx.fillRect(8, h * 0.35, 6, 8); // bacaklar
-  if (player.jet > 0) { ctx.fillStyle = '#f90'; ctx.beginPath(); ctx.moveTo(-18, 6); ctx.lineTo(-30, 30 + Math.random() * 10); ctx.lineTo(-12, 12); ctx.fill(); }
+  const squash = player.vy < -2 ? 1.08 : 0.96; ctx.scale(1 / squash, squash);
+  if (player.jet > 0) { ctx.fillStyle = '#ff9f1c'; ctx.beginPath(); ctx.moveTo(-14, 8); ctx.lineTo(-8, 36 + Math.random() * 12); ctx.lineTo(0, 12); ctx.lineTo(8, 36 + Math.random() * 12); ctx.lineTo(14, 8); ctx.fill(); }
+  ctx.fillStyle = '#e8e8f5'; ctx.beginPath(); ctx.roundRect(-13, 4, 26, 16, 6); ctx.fill();         // tulum
+  ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.arc(0, -4, 17, 0, 7); ctx.fill();                  // kafa
+  ctx.beginPath(); ctx.moveTo(-15, -12); ctx.lineTo(-13, -26); ctx.lineTo(-4, -17); ctx.fill();       // kulaklar
+  ctx.beginPath(); ctx.moveTo(15, -12); ctx.lineTo(13, -26); ctx.lineTo(4, -17); ctx.fill();
+  ctx.fillStyle = '#7dd3fc55'; ctx.strokeStyle = '#e8e8f5'; ctx.lineWidth = 3;                         // kask
+  ctx.beginPath(); ctx.arc(0, -4, 20, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#1b1035'; ctx.beginPath(); ctx.ellipse(-6, -5, 2.5, 4, 0, 0, 7); ctx.ellipse(7, -5, 2.5, 4, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#ff6b8b'; ctx.fillRect(0, 0, 3, 2);                                                  // burun
+  ctx.strokeStyle = '#1b1035'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(8, 1); ctx.lineTo(18, -1); ctx.moveTo(8, 4); ctx.lineTo(18, 5); ctx.stroke();
+  ctx.fillStyle = '#ffb347'; ctx.fillRect(-12, 18, 8, 6); ctx.fillRect(4, 18, 8, 6);                    // patiler
   ctx.restore();
 }
 
