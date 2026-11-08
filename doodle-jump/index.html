@@ -40,12 +40,15 @@ let best = +localStorage.getItem('zz-best') || 0;
 $('best').textContent = best;
 
 const GRAVITY = 0.38, JUMP = -11.5, SPRING_JUMP = -19, SPEED = 5;
-let player, platforms, items, enemies, score, camY, running, keys = {}, touchDir = 0, frame;
+let lastType = 'normal', player, platforms, items, enemies, score, camY, running, keys = {}, touchDir = 0, frame;
 
 function newPlatform(y, type) {
   if (!type) {
-    const r = Math.random(), d = Math.min(score / 6000, 0.5);
-    type = r < 0.12 + d * 0.3 ? 'moving' : r < 0.2 + d * 0.5 ? 'break' : 'normal';
+    const r = Math.random(), d = Math.min(score / 8000, 0.4);
+    type = score < 600 ? 'normal' : r < 0.1 + d * 0.3 ? 'moving' : r < 0.18 + d * 0.4 ? 'break' : 'normal';
+    // Kırılan platformdan sonra mutlaka sağlam platform gelsin
+    if (type === 'break' && lastType === 'break') type = 'normal';
+    lastType = type;
   }
   const p = { x: Math.random() * (W - 70), y, w: 70, h: 14, type, dx: 1 + Math.random() * 1.5 + score / 8000, broken: false };
   if (type === 'normal' && Math.random() < 0.08) items.push({ kind: 'spring', plat: p, ox: 20 });
@@ -54,14 +57,14 @@ function newPlatform(y, type) {
 }
 
 function reset() {
-  score = 0; camY = 0; frame = 0;
+  score = 0; camY = 0; frame = 0; lastType = 'normal';
   platforms = []; items = []; enemies = [];
   player = { x: W / 2 - 20, y: H - 120, w: 40, h: 40, vx: 0, vy: JUMP, dir: 1, jet: 0 };
   platforms.push({ x: W / 2 - 50, y: H - 60, w: 100, h: 14, type: 'normal', dx: 0, broken: false });
-  for (let y = H - 120; y > -H; y -= 55 + Math.random() * 25) platforms.push(newPlatform(y));
+  for (let y = H - 120; y > -H; y -= gap()) platforms.push(newPlatform(y));
 }
 
-function gap() { return 55 + Math.min(score / 120, 45) + Math.random() * 25; }
+function gap() { return 50 + Math.min(score / 250, 30) + Math.random() * 20; }
 
 function update() {
   frame++;
