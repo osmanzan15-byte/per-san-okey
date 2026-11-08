@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Zıpla Zıpla</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #2b2d42; font-family: system-ui, sans-serif; overflow: hidden; touch-action: none; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #wrap { position: relative; height: 100vh; max-height: 800px; aspect-ratio: 2 / 3; max-width: 100vw; }
+  canvas { width: 100%; height: 100%; display: block; border-radius: 8px; box-shadow: 0 0 30px #0008; }
+  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #fffa; text-align: center; color: #222; border-radius: 8px; gap: 8px; }
+  .overlay h1 { margin: 0; font-size: 3rem; color: #3a7d0a; }
+  .overlay button { font-size: 1.4rem; padding: 10px 28px; border: 0; border-radius: 999px; background: #6cc417; color: #fff; cursor: pointer; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="400" height="600"></canvas>
+  <div id="menu" class="overlay">
+    <h1>Zıpla Zıpla</h1>
+    <p>← → veya A / D ile hareket et<br>Mobilde ekranın sol/sağına dokun</p>
+    <p>En yüksek skor: <b id="best">0</b></p>
+    <button id="start">Başla</button>
+  </div>
+  <div id="over" class="overlay hidden">
+    <h1>Oyun Bitti</h1>
+    <p>Skor: <b id="final">0</b></p>
+    <p>En yüksek: <b id="best2">0</b></p>
+    <button id="again">Tekrar Oyna</button>
+  </div>
+</div>
+<script>
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const $ = id => document.getElementById(id);
+let best = +localStorage.getItem('zz-best') || 0;
+$('best').textContent = best;
+
+const GRAVITY = 0.38, JUMP = -11.5, SPRING_JUMP = -19, SPEED = 5;
+let player, platforms, items, enemies, score, camY, running, keys = {}, touchDir = 0, frame;
+
+function newPlatform(y, type) {
+  if (!type) {
+    const r = Math.random(), d = Math.min(score / 6000, 0.5);
+    type = r < 0.12 + d * 0.3 ? 'moving' : r < 0.2 + d * 0.5 ? 'break' : 'normal';
+  }
+  const p = { x: Math.random() * (W - 70), y, w: 70, h: 14, type, dx: 1 + Math.random() * 1.5 + score / 8000, broken: false };
+  if (type === 'normal' && Math.random() < 0.08) items.push({ kind: 'spring', plat: p, ox: 20 });
+  else if (type === 'normal' && Math.random() < 0.02) items.push({ kind: 'jet', plat: p, ox: 22 });
+  return p;
+}
+
+function reset() {
+  score = 0; camY = 0; frame = 0;
+  platforms = []; items = []; enemies = [];
+  player = { x: W / 2 - 20, y: H - 120, w: 40, h: 40, vx: 0, vy: JUMP, dir: 1, jet: 0 };
+  platforms.push({ x: W / 2 - 50, y: H - 60, w: 100, h: 14, type: 'normal', dx: 0, broken: false });
+  for (let y = H - 120; y > -H; y -= 55 + Math.random() * 25) platforms.push(newPlatform(y));
+}
+
+function gap() { return 55 + Math.min(score / 120, 45) + Math.random() * 25; }
+
+function update() {
+  frame++;
+  const dir = (keys.ArrowRight || keys.d || keys.D ? 1 : 0) - (keys.ArrowLeft || keys.a || keys.A ? 1 : 0) || touchDir;
+  player.vx = dir * SPEED;
+  if (dir) player.dir = dir;
+  player.x += player.vx;
+  if (player.x + player.w < 0) player.x = W;
+  if (player.x > W) player.x = -player.w;
+
+  if (player.jet > 0) { player.vy = -14; player.jet--; } else player.vy += GRAVITY;
+  const prevBottom = player.y + player.h;
+  player.y += player.vy;
+
+  // Platform çarpışması
+  if (player.vy > 0) {
+    for (const p of platforms) {
+      if (p.broken) continue;
+      if (prevBottom <= p.y + 4 && player.y + player.h >= p.y &&
+          player.x + player.w - 8 > p.x && player.x + 8 < p.x + p.w) {
+        if (p.type === 'break') { p.broken = true; continue; }
+        player.vy = JUMP;
+        for (const it of items) if (it.plat === p) {
+          if (it.kind === 'spring') player.vy = SPRING_JUMP;
+          if (it.kind === 'jet') { player.jet = 90; items.splice(items.indexOf(it), 1); }
+          break;
+        }
+        break;
+      }
+    }
+  }
+
+  // Hareketli platformlar
+  for (const p of platforms) if (p.type === 'moving') {
+    p.x += p.dx; if (p.x < 0 || p.x + p.w > W) p.dx *= -1;
+  }
+  for (const p of platforms) if (p.broken) p.y += 6;
+
+  // Düşmanlar
+  for (const e of enemies) {
+    e.x += e.dx; if (e.x < 0 || e.x + e.w > W) e.dx *= -1;
+    if (player.x < e.x + e.w && player.x + player.w > e.x && player.y < e.y + e.h && player.y + player.h > e.y) {
+      if (player.vy > 2 && player.y + player.h < e.y + e.h * 0.6) { // üstüne zıpla
+        e.dead = true; player.vy = JUMP; score += 200;
+      } else if (player.jet <= 0) return gameOver();
+    }
+  }
+  enemies = enemies.filter(e => !e.dead);
+
+  // Kamera
+  if (player.y < H * 0.4) {
+    const d = H * 0.4 - player.y;
+    player.y = H * 0.4; camY += d; score += Math.round(d);
+    platforms.forEach(p => p.y += d); enemies.forEach(e => e.y += d);
+  }
+
+  // Yeni platform üret / eskileri sil
+  platforms = platforms.filter(p => p.y < H + 60);
+  items = items.filter(it => platforms.includes(it.plat));
+  enemies = enemies.filter(e => e.y < H + 60);
+  let top = Math.min(...platforms.map(p => p.y));
+  while (top > -60) {
+    top -= gap();
+    platforms.push(newPlatform(top));
+    if (score > 1500 && Math.random() < 0.06 && enemies.length < 2)
+      enemies.push({ x: Math.random() * (W - 40), y: top - 50, w: 40, h: 30, dx: 1.2 + Math.random() });
+  }
+
+  if (player.y > H) gameOver();
+}
+
+function gameOver() {
+  running = false;
+  if (score > best) { best = score; localStorage.setItem('zz-best', best); }
+  $('final').textContent = score; $('best2').textContent = best;
+  $('over').classList.remove('hidden');
+}
+
+function draw() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#d8f3ff'); g.addColorStop(1, '#fdfbe6');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // ızgara (defter kağıdı)
+  ctx.strokeStyle = '#a8c8e033'; ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = (camY % 20); y < H; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  for (const p of platforms) {
+    ctx.fillStyle = p.type === 'moving' ? '#4a90e2' : p.type === 'break' ? '#b5651d' : '#6cc417';
+    ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 6); ctx.fill();
+    if (p.type === 'break') { ctx.strokeStyle = '#5a3210'; ctx.beginPath(); ctx.moveTo(p.x + 30, p.y); ctx.lineTo(p.x + 38, p.y + p.h); ctx.stroke(); }
+  }
+  for (const it of items) {
+    const x = it.plat.x + it.ox, y = it.plat.y;
+    if (it.kind === 'spring') {
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 3;
+      ctx.beginPath(); for (let i = 0; i < 4; i++) { ctx.moveTo(x, y - i * 4); ctx.lineTo(x + 14, y - i * 4 - 2); }
+      ctx.stroke(); ctx.fillStyle = '#e33'; ctx.fillRect(x - 2, y - 18, 18, 4);
+    } else { ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.roundRect(x, y - 24, 16, 24, 5); ctx.fill(); }
+  }
+  for (const e of enemies) { // canavar
+    ctx.fillStyle = '#8e44ad'; ctx.beginPath(); ctx.roundRect(e.x, e.y, e.w, e.h, 12); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(e.x + 8, e.y + 8, 8, 8); ctx.fillRect(e.x + 24, e.y + 8, 8, 8);
+    ctx.fillStyle = '#000'; ctx.fillRect(e.x + 11, e.y + 11, 3, 3); ctx.fillRect(e.x + 27, e.y + 11, 3, 3);
+  }
+  drawPlayer();
+
+  ctx.fillStyle = '#222'; ctx.font = 'bold 22px system-ui'; ctx.fillText(score, 12, 30);
+}
+
+function drawPlayer() {
+  const { x, y, w, h, dir } = player;
+  ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(dir, 1);
+  ctx.fillStyle = '#b7e34a'; ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h * 0.85, 14); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(2, -6, 7, 0, 7); ctx.arc(14, -6, 7, 0, 7); ctx.fill();
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(4, -6, 3, 0, 7); ctx.arc(16, -6, 3, 0, 7); ctx.fill();
+  ctx.fillStyle = '#7fae1f'; ctx.fillRect(18, 2, 14, 8); // burun
+  ctx.fillStyle = '#7fae1f'; ctx.fillRect(-14, h * 0.35, 6, 8); ctx.fillRect(8, h * 0.35, 6, 8); // bacaklar
+  if (player.jet > 0) { ctx.fillStyle = '#f90'; ctx.beginPath(); ctx.moveTo(-18, 6); ctx.lineTo(-30, 30 + Math.random() * 10); ctx.lineTo(-12, 12); ctx.fill(); }
+  ctx.restore();
+}
+
+function loop() {
+  if (!running) return;
+  update(); draw();
+  if (running) requestAnimationFrame(loop);
+}
+
+function start() {
+  $('menu').classList.add('hidden'); $('over').classList.add('hidden');
+  reset(); running = true; requestAnimationFrame(loop);
+}
+
+addEventListener('keydown', e => { keys[e.key] = true; });
+addEventListener('keyup', e => { keys[e.key] = false; });
+function touch(e) {
+  if (!running) return;
+  e.preventDefault();
+  if (!e.touches.length) { touchDir = 0; return; }
+  const r = cv.getBoundingClientRect();
+  touchDir = e.touches[0].clientX - r.left < r.width / 2 ? -1 : 1;
+}
+['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(t => document.addEventListener(t, touch, { passive: false }));
+$('start').onclick = start; $('again').onclick = start;
+reset(); draw();
+</script>
+</body>
+</html>
